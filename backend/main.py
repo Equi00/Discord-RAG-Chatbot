@@ -1,22 +1,8 @@
-import discord
+from openai import OpenAI
 import os
 from dotenv import load_dotenv
+from backend.services.conv_service import ConvService
 
 load_dotenv()
 
-bot_token = os.getenv("BOT_TOKEN")
-
-class Client(discord.Client):
-    async def on_ready(self):
-        print(f"Logged on as {self.user}")
-
-    async def on_message(self, message):
-        print(f"Message from {message.author}: {message.content}")
-
-
-intents = discord.Intents.default()
-intents.message_content = True
-
-client = Client(intents=intents)
-
-client.run(bot_token)
+ConvService().gpt_response()

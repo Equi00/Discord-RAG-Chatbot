@@ -1,0 +1,7 @@
+python-dotenv
+openai
+dirtyjson
+langchain_community
+semantic_chunkers
+datasets
+pypdf

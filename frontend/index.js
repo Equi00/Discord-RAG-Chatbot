@@ -1,7 +1,7 @@
 require('dotenv').config();
 const fs = require('fs');
 const path = require('path');
-const { REST, Routes } = require('discord.js');
+const { REST, Routes, MessageFlags } = require('discord.js');
 
 const deployCommands = async () => {
     try {
@@ -48,12 +48,14 @@ const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.GuildMessageReactions,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.GuildMembers
     ],
     partials: [
         Partials.Channel,
         Partials.Message,
+        Partials.Reaction,
         Partials.User,
         Partials.GuildMember
     ]
@@ -128,12 +130,42 @@ client.on(Events.InteractionCreate, async interaction => {
     } catch (error) {
         console.error(error);
         if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: 'There was an error while executing this command!', ephemeral: true});
+            await interaction.followUp({ content: 'There was an error while executing this command!', flags: [MessageFlags.Ephemeral]});
         } else {
-            await interaction.reply({ content: 'There was an error while executing this command!', ephemeral: true});
+            await interaction.reply({ content: 'There was an error while executing this command!', flags: [MessageFlags.Ephemeral]});
         }
     }
 });
+
+client.on(Events.InteractionCreate, async interaction => {
+    if (!interaction.isButton()) return
+
+    const messageId = interaction.message.id
+
+    const userId = interaction.user.id
+
+    let rating
+
+    if (interaction.customId == "feedback_up"){
+        rating = "up"
+    }
+
+    if (interaction.customId == "feedback_down"){
+        rating = "down"
+    }
+
+    if (!rating) return
+
+    try{
+        /*TODO: add feedback endopint */
+        console.log(`Message ID: ${messageId}\nUser ID: ${userId}\nRating: ${rating}`)
+
+        await interaction.reply({content: "Feedback sended", flags: [MessageFlags.Ephemeral]})
+    }catch (error){
+        await interaction.reply({content: "Error: The feedback could not be processed."})
+    }
+
+})
 
 
 client.login(process.env.BOT_TOKEN);

@@ -1,4 +1,4 @@
-const { SlashCommandBuilder } = require('discord.js');
+const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -17,12 +17,25 @@ module.exports = {
     await interaction.deferReply()
 
     try{
+      /*TODO: add RAG endpoint*/ 
         const response = "Generic message"
 
-        const message = await interaction.editReply(`${response}`)
+        const row = new ActionRowBuilder()
+          .addComponents(
+            new ButtonBuilder()
+              .setCustomId("feedback_up")
+              .setLabel("👍")
+              .setStyle(ButtonStyle.Success),
+            new ButtonBuilder()
+              .setCustomId("feedback_down")
+              .setLabel("👎")
+              .setStyle(ButtonStyle.Danger)
+          )
 
+        const message = await interaction.editReply({content: response, components: [row]})
+        
     } catch (error) {
-        await interaction.editReply("Error al procesar la consulta")
+        await interaction.editReply("Error: The bot cannot respond to the user query.")
     }
   },
 }

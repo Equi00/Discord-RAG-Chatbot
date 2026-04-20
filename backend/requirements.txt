@@ -1,7 +1,10 @@
 python-dotenv
-openai
 dirtyjson
 langchain_community
-semantic_chunkers
+langchain-huggingface
 datasets
 pypdf
+faiss-cpu
+ollama
+fastapi
+uvicorn

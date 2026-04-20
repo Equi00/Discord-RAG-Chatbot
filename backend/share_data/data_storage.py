@@ -1,7 +1,8 @@
 import os
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pypdf import PdfReader
 
 embedding_model = HuggingFaceEmbeddings(model_name='all-MiniLM-L6-v2')
@@ -19,14 +20,16 @@ def extract_text_pdf(pdf_path):
 
 
 def split_documents(documents):
-    #TODO: implement splitting logic
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
+
+    chunks = text_splitter.split_text(documents)
 
     return [
         Document(
-            page_content=" ".join(chunk.splits),
+            page_content=chunk,
             metadata={"id": i}
         )
-        for i, chunk in enumerate(chunks[0])
+        for i, chunk in enumerate(chunks)
     ]
 
 

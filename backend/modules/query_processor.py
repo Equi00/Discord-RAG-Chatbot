@@ -1,23 +1,23 @@
-from openai import OpenAI
 import os
 import dirtyjson
 from langchain_community.vectorstores import FAISS
-from sentence_transformers import SentenceTransformer
-from dotenv import load_dotenv
+from langchain_core.documents import Document
+from langchain_huggingface import HuggingFaceEmbeddings
+import ollama
+from concurrent.futures import ThreadPoolExecutor
 
-load_dotenv()
+embedding_model = HuggingFaceEmbeddings(model_name='all-MiniLM-L6-v2')
 
-client = OpenAI(
-            base_url="https://openrouter.ai/api/v1",
-            api_key=os.getenv("OPENROUTER_API_KEY", ""),
-            )
+storage_folder = os.path.join("storage")
 
-embedding_model = SentenceTransformer('all-MiniLM-L6-v2')
-
+faiss_db = FAISS.load_local(
+    folder_path=storage_folder, 
+    embeddings=embedding_model, 
+    allow_dangerous_deserialization=True)
 
 def multiquery(query: str) -> list[str]:
-    response = client.chat.completions.create(
-        model="google/gemma-3n-e4b-it:free",
+    response = ollama.chat(
+        model="smollm2:latest",
         messages=[
             {
             "role": "system",
@@ -35,12 +35,14 @@ def multiquery(query: str) -> list[str]:
                         - If the original query is an instruction, the 3 new queries must also be instructions.
 
                 3. Output format:
-                    - The result must be a readable JSON format ustin 'json.loads()' in Python, correctly formatted.
+                    - The result must be a readable JSON format using 'json.loads()' in Python, correctly formatted.
 
                 Example of JSON output format:
                 {{
                     "queries": ["query1", "query2", "query3"]
                 }}
+
+                Respond in JSON format.
                 """
             },
             {
@@ -48,45 +50,45 @@ def multiquery(query: str) -> list[str]:
                 "content": query
             }
         ],
-        temperature=0.0
+        options={
+            "temperature": 0.0
+        }
     )
 
-    queries_json = response.choices[0].message.content
+    queries_json = response["message"]["content"]
     queries = dirtyjson.loads(queries_json)
     queries_list = queries["queries"]
 
     return queries_list
 
 
-def return_context(query: str):
-    embedded_query = embedding_model.encode(query)
-
-    storage_folder = os.path.join("/backend/storage")
-
-    faiss_db = FAISS.load_local(
-        folder_path=storage_folder, 
-        embeddings=embedding_model, 
-        allow_dangerous_deserialization=True)
+def return_context(query: str) -> list[Document]:
+    embedded_query = embedding_model.embed_query(query)
     
-    context = faiss_db.similarity_search_with_score_by_vector(
+    context = faiss_db.similarity_search_by_vector(
         embedded_query,
-        k=3,
-        score_threshold = 0.8
+        k=3
     )
 
     return context
 
 
-def get_context(query: str):
-    queries: list[str] = multiquery(query)
+def get_context(query: str) -> list[Document]:
+    try:
+        queries: list[str] = multiquery(query)
+    except Exception as e:
+        print(e)
 
-    print(queries)
+    with ThreadPoolExecutor() as executor:
+        results = list(executor.map(return_context, queries))
 
     full_context = []
+    set_list = set()
 
-    [full_context.append(context) 
-     for query in queries 
-     for context, _ in return_context(query) 
-     if context not in full_context]
-    
+    for sublist in results:
+        for doc in sublist:
+            if doc.page_content not in set_list:
+                set_list.add(doc.page_content)
+                full_context.append(doc)
+
     return full_context

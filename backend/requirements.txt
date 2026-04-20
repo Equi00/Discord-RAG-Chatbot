@@ -8,3 +8,5 @@ faiss-cpu
 ollama
 fastapi
 uvicorn
+langchain_ollama
+openpyxl

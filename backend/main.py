@@ -1,14 +1,22 @@
-from models.response_model import ResponseModel
-from services.conv_service import ConvService
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from routers.llm_router import router as llm_router
 
+app = FastAPI(
+    title="RAG chatbot",
+    version="1.0.0"
+)
 
-app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def get_conv_service():
-    return ConvService()
+app.include_router(llm_router)
 
-
-@app.get("/api/llm_response", response_model=ResponseModel)
-def get_llm_response(query: str, service: ConvService = Depends(get_conv_service)):
-    return service.llm_response(query)
+@app.get("/")
+def read_root():
+    return {"message": "Welcome to the Chatbot Backend!"}

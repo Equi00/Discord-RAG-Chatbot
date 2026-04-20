@@ -1,0 +1,12 @@
+python-dotenv
+dirtyjson
+langchain_community
+langchain-huggingface
+datasets
+pypdf
+faiss-cpu
+ollama
+fastapi
+uvicorn
+langchain_ollama
+openpyxl

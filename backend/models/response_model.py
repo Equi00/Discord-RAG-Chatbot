@@ -1,4 +1,5 @@
 from pydantic import BaseModel
 
 class ResponseModel(BaseModel):
-    response: str
+    response: str = ""
+    context: list = []

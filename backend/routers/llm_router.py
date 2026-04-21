@@ -8,6 +8,6 @@ def get_conv_service():
     return ConvService()
 
 
-@router.get("/api/llm_response", response_model=ResponseModel)
-def get_llm_response(query: str, service: ConvService = Depends(get_conv_service)):
+@router.get("/llm_response", response_model=ResponseModel)
+async def get_llm_response(query: str, service: ConvService = Depends(get_conv_service)):
     return service.llm_response(query)

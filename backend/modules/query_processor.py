@@ -1,5 +1,6 @@
 import os
 import dirtyjson
+from fastapi import HTTPException
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -76,8 +77,8 @@ def return_context(query: str) -> list[Document]:
 def get_context(query: str) -> list[Document]:
     try:
         queries: list[str] = multiquery(query)
-    except Exception as e:
-        print(e)
+    except:
+        raise HTTPException(status_code=500, detail="The bot cannot respond your question right now. Try it later.")
 
     with ThreadPoolExecutor() as executor:
         results = list(executor.map(return_context, queries))

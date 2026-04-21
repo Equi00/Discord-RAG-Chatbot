@@ -1,3 +1,4 @@
+from fastapi import HTTPException
 import ollama
 from models.response_model import ResponseModel
 from modules.query_processor import get_context
@@ -5,10 +6,10 @@ from modules.query_processor import get_context
 class ConvService():
     def llm_response(self, query: str) -> ResponseModel:
         try:
-            response = self._reformula(query)
-            return ResponseModel(response=response)
-        except Exception as e:
-            print(e)
+            response, context = self._reformula(query)
+            return ResponseModel(response=response, context=context)
+        except :
+            raise HTTPException(status_code=500, detail="The bot cannot respond your question right now. Try it later.")
         
     def _reformula(self, query: str, temperature: float = 0.0) -> str:
         context = get_context(query)
@@ -45,4 +46,4 @@ class ConvService():
 
         response = response["message"]["content"]
 
-        return response
+        return response, context

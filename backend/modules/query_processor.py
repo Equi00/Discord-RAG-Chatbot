@@ -1,6 +1,5 @@
 import os
-import dirtyjson
-from fastapi import HTTPException
+import json
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -10,9 +9,7 @@ from transformers import AutoModelForSequenceClassification, AutoTokenizer
 import torch
 
 embedding_model = HuggingFaceEmbeddings(model_name='all-MiniLM-L6-v2')
-
 storage_folder = os.path.join("storage")
-
 faiss_db = FAISS.load_local(
     folder_path=storage_folder, 
     embeddings=embedding_model, 
@@ -20,8 +17,8 @@ faiss_db = FAISS.load_local(
 
 model = AutoModelForSequenceClassification.from_pretrained(f"Equi00/discord-rag-chatbot")
 tokenizer = AutoTokenizer.from_pretrained(f"Equi00/discord-rag-chatbot")
-
 model.eval()
+
 
 def is_valid_query(query: str) -> bool:
     inputs = tokenizer(
@@ -39,51 +36,68 @@ def is_valid_query(query: str) -> bool:
 
     return 0 == preds.tolist()[0]
 
+
 def multiquery(query: str) -> list[str]:
-    response = ollama.chat(
-        model="smollm2:latest",
-        messages=[
-            {
-            "role": "system",
-            "content": f"""
-                You are an assistant tasked with generating query variations.
+    for _ in range(3):
+        response = ollama.chat(
+            model="smollm2:latest",
+            format="json",
+            messages=[
+                {
+                "role": "system",
+                "content": """
+                    You are a query generation assistant.
 
-                Given a query provided by the user, follow these steps:
+                    Your task is to generate exactly 3 alternative queries based on the user input.
 
-                1. Generate 3 related queries, focusing on the keywords of the original query.
+                    STRICT RULES:
+                    - Output MUST be valid JSON.
+                    - Output ONLY JSON. No explanations, no extra text, no markdown.
+                    - The JSON must be directly parseable with json.loads() in Python.
+                    - Use double quotes (") for all keys and strings.
+                    - Do NOT include trailing commas.
 
-                2. Ensure that each new query:
-                    - Is unique and relevant, without repeating the original query.
-                    - Matches the format of the original query:
-                        - If the original query is a question, the 3 new queries must algo be questions.
-                        - If the original query is an instruction, the 3 new queries must also be instructions.
-
-                3. Output format:
-                    - The result must be a readable JSON format using 'json.loads()' in Python, correctly formatted.
-
-                Example of JSON output format:
-                {{
+                    FORMAT:
+                    {
                     "queries": ["query1", "query2", "query3"]
-                }}
+                    }
 
-                Respond in JSON format.
-                """
-            },
-            {
-                "role": "user",
-                "content": query
+                    CONSTRAINTS:
+                    - Exactly 3 queries (no more, no less)
+                    - Each query must be unique
+                    - Each query must preserve the intent of the original input
+                    - Match the format:
+                    - If the input is a question → all outputs must be questions
+                    - If the input is an instruction → all outputs must be instructions
+
+                    If you cannot comply, still return a valid JSON with 3 best-effort queries.
+
+                    Remember: ONLY return JSON.
+                    """
+                },
+                {
+                    "role": "user",
+                    "content": query
+                }
+            ],
+            options={
+                "temperature": 0.0
             }
-        ],
-        options={
-            "temperature": 0.0
-        }
-    )
+        )
 
-    queries_json = response["message"]["content"]
-    queries = dirtyjson.loads(queries_json)
-    queries_list = queries["queries"]
+        try:
+            queries_json = response["message"]["content"]
+            queries: dict = json.loads(queries_json)
 
-    return queries_list
+            if "queries" in queries:
+                queries_list = []
+                for question in queries["queries"]:
+                    queries_list.append(question["text"])
+                return queries_list
+        except:
+            pass
+
+    raise ValueError("Invalid model output")
 
 
 def return_context(query: str) -> list[Document]:
@@ -98,11 +112,8 @@ def return_context(query: str) -> list[Document]:
 
 
 def get_context(query: str) -> list[Document]:
-    try:
-        queries: list[str] = multiquery(query)
-    except:
-        raise HTTPException(status_code=500, detail="There was a problem retrieving the context.")
-
+    queries: list[str] = multiquery(query)
+    
     with ThreadPoolExecutor() as executor:
         results = list(executor.map(return_context, queries))
 

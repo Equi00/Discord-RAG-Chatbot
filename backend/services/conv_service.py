@@ -13,8 +13,8 @@ class ConvService():
         try:
             response, context = self._reformula(query)
             return ResponseModel(response=response, context=context, type="Response")
-        except :
-            raise HTTPException(status_code=500, detail="The bot cannot respond your question right now. Try it later.")
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"The bot cannot respond your question right now. Try it later: {e}")
         
     def _reformula(self, query: str, temperature: float = 0.0) -> str:
         context = get_context(query)

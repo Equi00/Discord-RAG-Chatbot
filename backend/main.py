@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers.llm_router import router as llm_router
+from routers.feedback_router import router as feedback_router
 
 app = FastAPI(
     title="RAG chatbot",
@@ -16,6 +17,7 @@ app.add_middleware(
 )
 
 app.include_router(llm_router)
+app.include_router(feedback_router)
 
 @app.get("/")
 def read_root():

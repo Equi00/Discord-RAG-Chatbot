@@ -3,6 +3,8 @@ const fs = require('fs');
 const path = require('path');
 const { REST, Routes, MessageFlags } = require('discord.js');
 
+const cache = require("./cache/cache")
+
 const deployCommands = async () => {
     try {
         const commands = [];
@@ -140,9 +142,9 @@ client.on(Events.InteractionCreate, async interaction => {
 client.on(Events.InteractionCreate, async interaction => {
     if (!interaction.isButton()) return
 
-    const messageId = interaction.message.id
+    const message_id = interaction.message.id
 
-    const userId = interaction.user.id
+    const user_id = interaction.user.id
 
     let rating
 
@@ -157,8 +159,20 @@ client.on(Events.InteractionCreate, async interaction => {
     if (!rating) return
 
     try{
-        /*TODO: add feedback endopint */
-        console.log(`Message ID: ${messageId}\nUser ID: ${userId}\nRating: ${rating}`)
+        const data = cache.get(message_id)
+
+        const response = await fetch(
+        `http://localhost:8000/api/store_feedback`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                ...data,
+                rating,
+                user_id,
+                message_id
+            })
+        }
+        )
 
         await interaction.reply({content: "Feedback sended", flags: [MessageFlags.Ephemeral]})
     }catch (error){

@@ -10,3 +10,4 @@ fastapi
 uvicorn
 langchain_ollama
 openpyxl
+pymongo

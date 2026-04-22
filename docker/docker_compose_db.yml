@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  feedback_db:
+    image: mongo:latest
+    container_name: feedback_mongo
+    restart: always
+    ports:
+      - '27017:27017'
+    volumes:
+      - feedback_db:/data/db
+
+volumes:
+  feedback_db:

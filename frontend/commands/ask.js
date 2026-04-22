@@ -1,5 +1,7 @@
 const { SlashCommandBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
+const cache = require("../cache/cache")
+
 module.exports = {
   data: new SlashCommandBuilder()
   .setName("ask")
@@ -17,10 +19,11 @@ module.exports = {
     await interaction.deferReply()
 
     try{
-      /*TODO: add RAG endpoint*/ 
-        const response = "Generic message"
+      const response = await fetch(
+        `http://localhost:8000/api/llm_response?query=${encodeURIComponent(question)}`
+      )
 
-        const row = new ActionRowBuilder()
+      const row = new ActionRowBuilder()
           .addComponents(
             new ButtonBuilder()
               .setCustomId("feedback_up")
@@ -32,7 +35,16 @@ module.exports = {
               .setStyle(ButtonStyle.Danger)
           )
 
-        const message = await interaction.editReply({content: response, components: [row]})
+      const data = await response.json()
+      const message = await interaction.editReply({content: data.response, components: [row]})
+
+      cache.set(message.id, {
+        question,
+        answer: data.response,
+        context: data.context,
+        date: new Date().toLocaleDateString("en-US"),
+        type: data.type
+      })
         
     } catch (error) {
         await interaction.editReply("Error: The bot cannot respond to the user query.")

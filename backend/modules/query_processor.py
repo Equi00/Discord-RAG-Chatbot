@@ -1,10 +1,13 @@
 import os
 import dirtyjson
+from fastapi import HTTPException
 from langchain_community.vectorstores import FAISS
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
 import ollama
 from concurrent.futures import ThreadPoolExecutor
+from transformers import AutoModelForSequenceClassification, AutoTokenizer
+import torch
 
 embedding_model = HuggingFaceEmbeddings(model_name='all-MiniLM-L6-v2')
 
@@ -14,6 +17,27 @@ faiss_db = FAISS.load_local(
     folder_path=storage_folder, 
     embeddings=embedding_model, 
     allow_dangerous_deserialization=True)
+
+model = AutoModelForSequenceClassification.from_pretrained(f"Equi00/discord-rag-chatbot")
+tokenizer = AutoTokenizer.from_pretrained(f"Equi00/discord-rag-chatbot")
+
+model.eval()
+
+def is_valid_query(query: str) -> bool:
+    inputs = tokenizer(
+        query,
+        return_tensors="pt",
+        truncation=True,
+        padding=True,
+        max_length=128
+    )
+
+    with torch.no_grad():
+        outputs = model(**inputs)
+
+    preds = torch.argmax(outputs.logits, dim=1)
+
+    return 0 == preds.tolist()[0]
 
 def multiquery(query: str) -> list[str]:
     response = ollama.chat(
@@ -76,8 +100,8 @@ def return_context(query: str) -> list[Document]:
 def get_context(query: str) -> list[Document]:
     try:
         queries: list[str] = multiquery(query)
-    except Exception as e:
-        print(e)
+    except:
+        raise HTTPException(status_code=500, detail="There was a problem retrieving the context.")
 
     with ThreadPoolExecutor() as executor:
         results = list(executor.map(return_context, queries))

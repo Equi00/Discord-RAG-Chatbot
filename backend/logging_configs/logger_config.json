@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "disable_existing_loggers": false,
+  "formatters": {
+    "simple": {
+      "format": "%(levelname)s: %(message)s",
+      "datefmt": "%Y-%m-%dT%H:%M:%S%z"
+    },
+    "json": {
+      "()": "app_logger.logger_formatter.AppJSONFormatter",
+      "fmt_keys": {
+        "level": "levelname",
+        "message": "message",
+        "timestamp": "timestamp",
+        "request_id": "request_id",
+        "query": "query",
+        "context_size": "context_size",
+        "response_length": "response_length",
+        "prompt_length": "prompt_length",
+        "query_count": "query_count",
+        "unique_docs": "unique_docs",
+        "latency_ms": "latency_ms",
+        "rating": "rating",
+        "step": "step",
+        "logger": "name",
+        "module": "module",
+        "function": "funcName",
+        "line": "lineno",
+        "thread_name": "threadName"
+      }
+    }
+  },
+  "handlers": {
+    "stderr": {
+      "class": "logging.StreamHandler",
+      "level": "WARNING",
+      "formatter": "simple",
+      "stream": "ext://sys.stderr"
+    },
+    "file": {
+      "class": "logging.handlers.RotatingFileHandler",
+      "level": "DEBUG",
+      "formatter": "json",
+      "filename": "logs/app.log.jsonl",
+      "maxBytes": 25000,
+      "backupCount": 3
+    }
+  },
+  "loggers": {
+    "discord_rag_chatbot": {
+      "level": "DEBUG",
+      "handlers": [
+        "stderr",
+        "file"
+      ],
+      "propagate": false
+    }
+  }
+}

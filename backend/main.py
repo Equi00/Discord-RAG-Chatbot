@@ -2,6 +2,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routers.llm_router import router as llm_router
 from routers.feedback_router import router as feedback_router
+from app_logger.logger_setup import setup_logging
+
+setup_logging()
 
 app = FastAPI(
     title="RAG chatbot",

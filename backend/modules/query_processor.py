@@ -7,6 +7,7 @@ import ollama
 from concurrent.futures import ThreadPoolExecutor
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 import torch
+from app_logger.logger_setup import logger
 
 embedding_model = HuggingFaceEmbeddings(model_name='all-MiniLM-L6-v2')
 storage_folder = os.path.join("storage")
@@ -37,7 +38,7 @@ def is_valid_query(query: str) -> bool:
     return 0 == preds.tolist()[0]
 
 
-def multiquery(query: str) -> list[str]:
+def multiquery(query: str, request_id: str) -> list[str]:
     for _ in range(3):
         response = ollama.chat(
             model="smollm2:latest",
@@ -93,8 +94,17 @@ def multiquery(query: str) -> list[str]:
                 queries_list = []
                 for question in queries["queries"]:
                     queries_list.append(question["text"])
+                logger.debug("Multiquery generated", extra={
+                    "request_id": request_id,
+                    "query_count": len(queries_list),
+                    "step": "multiquery"
+                })
                 return queries_list
         except:
+            logger.warning("Multiquery attempt failed to parse model output", extra={
+                "request_id": request_id,
+                "step": "multiquery_parse"
+            })
             pass
 
     raise ValueError("Invalid model output")
@@ -111,8 +121,14 @@ def return_context(query: str) -> list[Document]:
     return context
 
 
-def get_context(query: str) -> list[Document]:
-    queries: list[str] = multiquery(query)
+def get_context(query: str, request_id: str) -> list[Document]:
+    queries: list[str] = multiquery(query, request_id)
+
+    logger.debug("Context retrieval started", extra={
+        "request_id": request_id,
+        "query_count": len(queries),
+        "step": "get_context"
+    })
     
     with ThreadPoolExecutor() as executor:
         results = list(executor.map(return_context, queries))
@@ -125,5 +141,11 @@ def get_context(query: str) -> list[Document]:
             if doc.page_content not in set_list:
                 set_list.add(doc.page_content)
                 full_context.append(doc)
+
+    logger.debug("Context retrieval finished", extra={
+        "request_id": request_id,
+        "unique_docs": len(full_context),
+        "step": "get_context_done"
+    })
 
     return full_context

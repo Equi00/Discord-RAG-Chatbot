@@ -3,7 +3,11 @@ set -e
 
 echo "Starting Discord RAG Chatbot App..."
 
-docker compose -f docker/docker_compose.yml up --build -d
+if docker compose -f docker/docker_compose.yml ps -q | grep -q .; then
+    docker compose -f docker/docker_compose.yml start
+else
+    docker compose -f docker/docker_compose.yml up -d
+fi
 
 echo ""
 echo " - Application is running"

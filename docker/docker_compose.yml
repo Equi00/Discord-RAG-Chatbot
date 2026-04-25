@@ -30,7 +30,7 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8000/metrics"]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 30s
 
   discord_bot:

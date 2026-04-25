@@ -1,15 +1,28 @@
 from fastapi import HTTPException
 import ollama
+from dotenv import load_dotenv
 from models.response_model import ResponseModel
 from modules.query_processor import get_context, is_valid_query
 from app_logger.logger_setup import logger
+from modules.prompt_constructor import llm_prompt
 import time
 import uuid
+from metrics.metrics import (
+    REQUEST_COUNT, SUCCESS_COUNT, ERROR_COUNT,
+    INVALID_QUERY_COUNT, REQUEST_LATENCY,
+    RAG_LATENCY, LLM_LATENCY
+)
+
+load_dotenv()
+
+client = ollama.Client(host="http://ollama:11434")
 
 class ConvService:
     def llm_response(self, query: str) -> ResponseModel:
         request_id = str(uuid.uuid4())
         start = time.time()
+
+        REQUEST_COUNT.inc()
 
         logger.info("LLM request received", extra={
             "request_id": request_id,
@@ -18,11 +31,14 @@ class ConvService:
         })
 
         if not is_valid_query(query):
+            INVALID_QUERY_COUNT.inc()
+
             logger.warning("Invalid query", extra={
                 "request_id": request_id,
                 "query": query,
                 "step": "validation"
             })
+
             return ResponseModel(
                 response="Hi! I only answer Monopoly questions. Can you ask another question?"
             )
@@ -40,9 +56,13 @@ class ConvService:
                 "step": "llm_response"
             })
 
+            SUCCESS_COUNT.inc()
+            REQUEST_LATENCY.observe(latency)
+
             return ResponseModel(response=response, context=context, type="Response")
 
-        except Exception:
+        except Exception as e:
+            ERROR_COUNT.inc()
             logger.exception("LLM processing failed", extra={
                 "request_id": request_id,
                 "query": query,
@@ -50,13 +70,15 @@ class ConvService:
             })
             raise HTTPException(
                 status_code=500,
-                detail="The bot cannot respond your question right now. Try it later."
+                detail=e
             )
 
     def _reformula(self, query: str, request_id: str, temperature: float = 0.0) -> tuple[str, str]:
         rag_start = time.time()
         context = get_context(query, request_id)
         rag_latency = int((time.time() - rag_start) * 1000)
+
+        RAG_LATENCY.observe(rag_latency)
 
         logger.info("RAG context retrieved", extra={
             "request_id": request_id,
@@ -66,20 +88,7 @@ class ConvService:
             "step": "rag_retrieval"
         })
 
-        prompt = f"""
-            You are an assistant created to answer user questions based on the provided information.
-            You have access to the following inputs:
-
-            - **Query**: The specific question or instruction provided by the user.
-            - **Context**: Additional contextual information that may help clarify or add details to the response: {context}
-
-            Your task is to use this information to provide accurate and clear answers to the user questions. When responding:
-
-            - Use the context to clarify or expand on the information in your response where applicable.
-            - Keep your answers concise, directly addressing the user query in a helpful manner.
-
-            Ensure that all responses are conversational and tailored to the user's specific needs.
-        """
+        prompt = llm_prompt(context)
 
         logger.debug("Prompt built", extra={
             "request_id": request_id,
@@ -88,7 +97,7 @@ class ConvService:
         })
 
         llm_start = time.time()
-        response = ollama.chat(
+        response = client.chat(
             model="smollm2:latest",
             messages=[
                 {"role": "system", "content": prompt},
@@ -97,6 +106,8 @@ class ConvService:
             options={"temperature": temperature}
         )
         llm_latency = int((time.time() - llm_start) * 1000)
+
+        LLM_LATENCY.observe(llm_latency)
 
         response_text = response["message"]["content"]
 

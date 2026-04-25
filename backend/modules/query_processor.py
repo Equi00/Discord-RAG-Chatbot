@@ -8,6 +8,12 @@ from concurrent.futures import ThreadPoolExecutor
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 import torch
 from app_logger.logger_setup import logger
+from modules.prompt_constructor import multiquery_prompt
+from dotenv import load_dotenv
+
+load_dotenv()
+
+client = ollama.Client(host="http://ollama:11434")
 
 embedding_model = HuggingFaceEmbeddings(model_name='all-MiniLM-L6-v2')
 storage_folder = os.path.join("storage")
@@ -40,47 +46,10 @@ def is_valid_query(query: str) -> bool:
 
 def multiquery(query: str, request_id: str) -> list[str]:
     for _ in range(3):
-        response = ollama.chat(
+        response = client.chat(
             model="smollm2:latest",
             format="json",
-            messages=[
-                {
-                "role": "system",
-                "content": """
-                    You are a query generation assistant.
-
-                    Your task is to generate exactly 3 alternative queries based on the user input.
-
-                    STRICT RULES:
-                    - Output MUST be valid JSON.
-                    - Output ONLY JSON. No explanations, no extra text, no markdown.
-                    - The JSON must be directly parseable with json.loads() in Python.
-                    - Use double quotes (") for all keys and strings.
-                    - Do NOT include trailing commas.
-
-                    FORMAT:
-                    {
-                    "queries": ["query1", "query2", "query3"]
-                    }
-
-                    CONSTRAINTS:
-                    - Exactly 3 queries (no more, no less)
-                    - Each query must be unique
-                    - Each query must preserve the intent of the original input
-                    - Match the format:
-                    - If the input is a question → all outputs must be questions
-                    - If the input is an instruction → all outputs must be instructions
-
-                    If you cannot comply, still return a valid JSON with 3 best-effort queries.
-
-                    Remember: ONLY return JSON.
-                    """
-                },
-                {
-                    "role": "user",
-                    "content": query
-                }
-            ],
+            messages=multiquery_prompt(query),
             options={
                 "temperature": 0.0
             }

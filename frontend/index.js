@@ -158,11 +158,10 @@ client.on(Events.InteractionCreate, async interaction => {
 
     if (!rating) return
 
-    try{
-        const data = cache.get(message_id)
+    const data = cache.get(message_id)
 
-        const response = await fetch(
-        `http://localhost:8000/api/store_feedback`, {
+    const response = await fetch(
+        `http://backend:8000/api/store_feedback`, {
             method: "POST",
             headers: {"Content-Type": "application/json"},
             body: JSON.stringify({
@@ -174,10 +173,8 @@ client.on(Events.InteractionCreate, async interaction => {
         }
         )
 
-        await interaction.reply({content: "Feedback sended", flags: [MessageFlags.Ephemeral]})
-    }catch (error){
-        await interaction.reply({content: "Error: The feedback could not be processed."})
-    }
+    await interaction.reply({content: "Feedback sended", flags: [MessageFlags.Ephemeral]})
+    
 
 })
 

@@ -18,12 +18,11 @@ module.exports = {
 
     await interaction.deferReply()
 
-    try{
-      const response = await fetch(
-        `http://localhost:8000/api/llm_response?query=${encodeURIComponent(question)}`
+    const response = await fetch(
+        `http://backend:8000/api/llm_response?query=${encodeURIComponent(question)}`
       )
 
-      const row = new ActionRowBuilder()
+    const row = new ActionRowBuilder()
           .addComponents(
             new ButtonBuilder()
               .setCustomId("feedback_up")
@@ -35,10 +34,10 @@ module.exports = {
               .setStyle(ButtonStyle.Danger)
           )
 
-      const data = await response.json()
-      const message = await interaction.editReply({content: data.response, components: [row]})
+    const data = await response.json()
+    const message = await interaction.editReply({content: data.response, components: [row]})
 
-      cache.set(message.id, {
+    cache.set(message.id, {
         question,
         answer: data.response,
         context: data.context,
@@ -46,8 +45,5 @@ module.exports = {
         type: data.type
       })
         
-    } catch (error) {
-        await interaction.editReply("Error: The bot cannot respond to the user query.")
-    }
   },
 }
